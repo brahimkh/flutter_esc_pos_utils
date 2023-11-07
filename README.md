@@ -170,3 +170,4 @@ final profiles = await CapabilityProfile.getAvailableProfiles();
 - Add a CapabilityProfile to support your printer's model. A new profile should be added to `lib/resources/capabilities.json` file
 - Test and report bugs
 - Share your ideas about what could be improved (code optimization, new features...)
+# flutter_esc_pos_utils
