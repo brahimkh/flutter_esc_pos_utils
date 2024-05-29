@@ -1,5 +1,12 @@
-import 'package:example/printing.dart';
-import 'package:flutter/material.dart';
+import 'dart:io';
+import 'dart:ui';
+import 'package:flutter/material.dart' hide Image;
+import 'package:flutter/services.dart';
+import 'package:flutter_esc_pos_utils/flutter_esc_pos_utils.dart';
+import 'package:flutter_html_to_pdf/flutter_html_to_pdf.dart';
+import 'package:image/image.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:printing/printing.dart';
 
 void main() {
   runApp(const MyApp());
@@ -24,6 +31,7 @@ class MyApp extends StatelessWidget {
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
+
   final String title;
 
   @override
@@ -31,60 +39,19 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
   void _incrementCounter() {
-    printPDF().then((value){
-      print("The value is $value");
-    });
+    printP88();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
+      body: PdfPreview(
+        build: (format) => pdfPrint(),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
@@ -93,4 +60,145 @@ class _MyHomePageState extends State<MyHomePage> {
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
+}
+
+Future<Uint8List> pdfPrint() async {
+  var htmlContent = """
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+  table, th, td {
+    border: 1px solid black;
+    border-collapse: collapse;
+  }
+  th, td, p {
+    padding: 5px;
+    text-align: left;
+  }
+  </style>
+</head>
+  <body>
+    <h2>រក្សាទ្រពប្រសើរជាង</h2>
+    <table style="width:100%">
+      <tr>
+        <th>ជំរាប់សួរ</th>
+        <th>Savings</th>
+      </tr>
+      <tr>
+        <td>January</td>
+        <td>100</td>
+      </tr>
+      <tr>
+        <td>February</td>
+        <td>50</td>
+      </tr>
+    </table>
+     <p>សូមអរគុណ</p>
+  </body>
+</html>
+""";
+
+  final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
+  var targetFileName = "example_pdf_file.pdf";
+
+  var generatedPdfFile = await FlutterHtmlToPdf.convertFromHtmlContent(
+      htmlContent, appDocumentsDir.path, targetFileName);
+  final fileToUnit8List = generatedPdfFile.readAsBytesSync();
+  return fileToUnit8List;
+}
+
+Future<void> printP88() async {
+  final profile = await CapabilityProfile.load();
+  PaperSize mm80 = PaperSize.mm80;
+  final printer = NetworkPrinter(mm80, profile);
+  const ip = "192.168.1.100";
+  final PosPrintResult res = await printer.connect(ip, port: 9100);
+  final font =await rootBundle.load("assets/siemreab.ttf");
+  final fontData = font.buffer.asUint8List();
+  if (res == PosPrintResult.success) {
+    printer.qrcode("hello");
+    final List<String> cols = <String>[
+      'លេខកូដ',
+      'ឈ្មោះទំនិញ',
+      'តម្លៃ',
+      'ចំនួន',
+      'តម្លៃសរុប'
+    ];
+    final List<Map<String, dynamic>> rows = [
+      {
+        "1": {'1', 'សំណុំទឹកដោះគោ', '1.00', '2', '2.00'}
+      },
+      {
+        "2": {'2', 'សំណុំទឹកដោលគោ', '1.00', '3', '2.00'}
+      },
+    ];
+    /// font style text khmer
+    await printer.textUft8("វិស័យអប់រំគឺជាវិស័យមួយចំបងក្នុងការរុញច្រាននិងបណ្តុះបណ្តាលធនាធានមនុស្ស ទាំងបច្ចុប្បន្ននិងអនាគតដើម្បីបំរើដល់ដល់ការងារសង្គម ។");
+    printer.hr();
+    await printer.rowUft8(cols);
+    for(final row in rows){
+      final List<String> rowList = [];
+      final values = row.values as List<String>;
+      printer.rowUft8(values);
+    }
+    printer.text("Thank you...!",
+        styles: const PosStyles(align: PosAlign.center));
+    printer.feed(2);
+    printer.cut();
+    printer.disconnect();
+  } else {
+    throw Exception("Can't connect to printer");
+  }
+}
+
+Future<void> networkPrint() async {
+  final profile = await CapabilityProfile.load(name: 'Zy306');
+  PaperSize mm80 = PaperSize.mm80;
+  final printer = NetworkPrinter(mm80, profile);
+  const ip = "192.168.3.100";
+  final PosPrintResult res = await printer.connect(ip, port: 9100);
+}
+
+Future<Uint8List> getBillImage(String label,
+    {double fontSize = 26,
+    FontWeight fontWeight = FontWeight.w600,
+    double maxWidth = 372}) async {
+  final recorder = PictureRecorder();
+  final canvas = Canvas(recorder);
+
+  /// Background
+  final backgroundPaint = Paint()..color = Colors.white;
+  final backgroundRect = Rect.fromLTRB(maxWidth, 10000, 0, 0);
+  final backgroundPath = Path()
+    ..addRRect(
+      RRect.fromRectAndRadius(backgroundRect, const Radius.circular(0)),
+    )
+    ..close();
+  canvas.drawPath(backgroundPath, backgroundPaint);
+
+  //Title
+  final ticketNum = TextPainter(
+    textDirection: TextDirection.rtl,
+    textAlign: TextAlign.left,
+    text: TextSpan(
+      text: label,
+      style: TextStyle(
+          color: Colors.black, fontSize: fontSize, fontWeight: fontWeight),
+    ),
+  );
+  ticketNum
+    ..layout(
+      maxWidth: maxWidth,
+    )
+    ..paint(
+      canvas,
+      const Offset(0, 0),
+    );
+  canvas.restore();
+  final picture = recorder.endRecording();
+  final pngBytes = await (await picture.toImage(
+          maxWidth.toInt(), ticketNum.height.toInt() + 5))
+      .toByteData(format: ImageByteFormat.png);
+  return pngBytes!.buffer.asUint8List();
 }
