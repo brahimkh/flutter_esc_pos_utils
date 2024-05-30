@@ -27,8 +27,11 @@ class NetworkPrinter {
   late Socket _socket;
 
   int? get port => _port;
+
   String? get host => _host;
+
   PaperSize get paperSize => _paperSize;
+
   CapabilityProfile get profile => _profile;
 
   Future<PosPrintResult> connect(String host,
@@ -184,5 +187,23 @@ class NetworkPrinter {
       maxCharsPerLine: maxCharsPerLine,
     ));
   }
-  // ************************ (end) Printer Commands ************************
+
+  Future<void> textUft8(String text, {double size = 558}) async {
+    final add = await _generator.textToImage(text, maxWidth: size);
+    Image? img = decodeImage(add);
+    image(img!);
+  }
+
+  Future<void> rowUft8(List<String> rowText) async {
+    final add = await _generator.rowTextImage(rowText, 558);
+    Image? img = decodeImage(add);
+    image(img!);
+  }
+
+  Future<void> columnUft8(List<String> cols) async {
+    final add = await _generator.columnTextImage(cols, 558);
+    Image? img = decodeImage(add);
+    image(img!);
+  }
+// ************************ (end) Printer Commands ************************
 }

@@ -50,8 +50,8 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
-      body: PdfPreview(
-        build: (format) => pdfPrint(),
+      body: Center(
+        child:Text("Welcome to Flutter ESC POS Utils!"),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
@@ -62,51 +62,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-Future<Uint8List> pdfPrint() async {
-  var htmlContent = """
-<!DOCTYPE html>
-<html>
-<head>
-  <style>
-  table, th, td {
-    border: 1px solid black;
-    border-collapse: collapse;
-  }
-  th, td, p {
-    padding: 5px;
-    text-align: left;
-  }
-  </style>
-</head>
-  <body>
-    <h2>រក្សាទ្រពប្រសើរជាង</h2>
-    <table style="width:100%">
-      <tr>
-        <th>ជំរាប់សួរ</th>
-        <th>Savings</th>
-      </tr>
-      <tr>
-        <td>January</td>
-        <td>100</td>
-      </tr>
-      <tr>
-        <td>February</td>
-        <td>50</td>
-      </tr>
-    </table>
-     <p>សូមអរគុណ</p>
-  </body>
-</html>
-""";
-
-  final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
-  var targetFileName = "example_pdf_file.pdf";
-
-  var generatedPdfFile = await FlutterHtmlToPdf.convertFromHtmlContent(
-      htmlContent, appDocumentsDir.path, targetFileName);
-  final fileToUnit8List = generatedPdfFile.readAsBytesSync();
-  return fileToUnit8List;
-}
 
 Future<void> printP88() async {
   final profile = await CapabilityProfile.load();

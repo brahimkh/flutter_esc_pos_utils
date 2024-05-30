@@ -1,5 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data' show Uint8List;
+import 'dart:typed_data';
+import 'dart:ui' hide Codec;
+import 'package:flutter/material.dart' hide Image;
 import 'package:hex/hex.dart';
 import 'package:image/image.dart';
 import 'package:gbk_codec/gbk_codec.dart';
@@ -14,9 +16,11 @@ class Generator {
   final PaperSize _paperSize;
   final CapabilityProfile _profile;
   int? _maxCharsPerLine;
+
   // Global styles
   String? _codeTable;
   PosFontType? _font;
+
   // Current styles
   PosStyles _styles = const PosStyles();
   final Codec codec;
@@ -218,6 +222,7 @@ class Generator {
     return ((0xFFFFFFFF ^ (0x1 << shift)) & uint32) |
         ((newValue ? 1 : 0) << shift);
   }
+
   // ************************ (end) Internal helpers  ************************
 
   //**************************** Public command generators ************************
@@ -790,6 +795,7 @@ class Generator {
     bytes += emptyLines(linesAfter + 1);
     return bytes;
   }
+
   // ************************ (end) Public command generators ************************
 
   // ************************ (end) Internal command generators ************************
@@ -871,5 +877,138 @@ class Generator {
     bytes += emptyLines(linesAfter + 1);
     return bytes;
   }
+
+  Future<Uint8List> textToImage(String label,
+      {double fontSize = 26,
+      FontWeight fontWeight = FontWeight.w600,
+      double maxWidth = 558}) async {
+    final recorder = PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    /// Background
+    final backgroundPaint = Paint()..color = Colors.white;
+    final backgroundRect = Rect.fromLTRB(maxWidth, 10000, 0, 0);
+    final backgroundPath = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(backgroundRect, const Radius.circular(0)),
+      )
+      ..close();
+    canvas.drawPath(backgroundPath, backgroundPaint);
+
+    //Title
+    final ticketNum = TextPainter(
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.left,
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+            color: Colors.black, fontSize: fontSize, fontWeight: fontWeight),
+      ),
+    );
+    ticketNum
+      ..layout(
+        maxWidth: maxWidth,
+      )
+      ..paint(
+        canvas,
+        const Offset(0, 0),
+      );
+
+    canvas.restore();
+    final picture = recorder.endRecording();
+    final pngBytes = await (await picture.toImage(
+            maxWidth.toInt(), ticketNum.height.toInt() + 5))
+        .toByteData(format: ImageByteFormat.png);
+    return pngBytes!.buffer.asUint8List();
+  }
+
+  Future<Uint8List> rowTextImage(List<String> texts, double maxWidth) async {
+    final recorder = PictureRecorder();
+    final canvas = Canvas(recorder);
+
+    // Background
+    final backgroundPaint = Paint()..color = Colors.white;
+    final backgroundRect = Rect.fromLTRB(maxWidth, 10000, 0, 0);
+    final backgroundPath = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(backgroundRect, const Radius.circular(0)),
+      )
+      ..close();
+    canvas.drawPath(backgroundPath, backgroundPaint);
+
+    // Render each row of text
+    double offsetX = 0;
+    final length = texts.length;
+    final textWidget = maxWidth / length;
+    int textHeight = 0;
+    for (String text in texts) {
+      final textPainter = TextPainter(
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.left,
+        text: TextSpan(
+          text: text,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 24,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+      textPainter.layout(maxWidth: maxWidth);
+      textHeight = textPainter.height.toInt();
+      textPainter.paint(canvas, Offset(offsetX, 0));
+      offsetX += textWidget;
+    }
+    final picture = recorder.endRecording();
+    final pngBytes = await (await picture.toImage(maxWidth.toInt(), textHeight))
+        .toByteData(format: ImageByteFormat.png);
+    return pngBytes!.buffer.asUint8List();
+  }
+
+  Future<Uint8List> columnTextImage(List<String> texts, double maxWidth) async {
+    final recorder = PictureRecorder();
+    final canvas = Canvas(recorder);
+    // Background
+    final backgroundPaint = Paint()..color = Colors.white;
+    final backgroundRect = Rect.fromLTRB(maxWidth, 10000, 0, 0);
+    final backgroundPath = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(backgroundRect, const Radius.circular(0)),
+      )
+      ..close();
+    canvas.drawPath(backgroundPath, backgroundPaint);
+
+    // Render each row of text
+    double offsetX = 0;
+    final length = texts.length;
+    final textWidget = maxWidth / length;
+    int textHeight = 0;
+    for (String text in texts) {
+      final textPainter = TextPainter(
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.left,
+        text: TextSpan(
+          text: text,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 24,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+
+      textPainter.layout(maxWidth: maxWidth);
+      textHeight = textPainter.height.toInt();
+      textPainter.paint(canvas, Offset(offsetX, 0));
+      offsetX += textWidget;
+    }
+
+    final picture = recorder.endRecording();
+    final pngBytes =
+        await (await picture.toImage(maxWidth.toInt(), textHeight + 5))
+            .toByteData(format: ImageByteFormat.png);
+    return pngBytes!.buffer.asUint8List();
+  }
+
 // ************************ (end) Internal command generators ************************
 }
