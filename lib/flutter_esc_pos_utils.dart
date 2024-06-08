@@ -8,3 +8,4 @@ export 'src/pos_styles.dart';
 export 'src/qrcode.dart';
 export 'src/generator.dart';
 export 'src/network_printer.dart';
+export 'src/printer_bluetooth_manager.dart';
